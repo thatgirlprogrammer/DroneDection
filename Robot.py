@@ -1,5 +1,8 @@
 from math import *
 import random
+import matplotlib.pyplot as plt
+from matplotlib.path import Path
+import matplotlib.patches as patches
 
 
 class Robot:
@@ -14,7 +17,7 @@ class Robot:
 
     def __repr__(self):
         return '[x=%.6s y=%.6s orient=%.6s]' % (str(self.x), str(self.y),
-                                                str(self.orientation))
+             str(self.orientation))
 
     def set(self, new_x, new_y, new_orientation):
         if new_orientation < 0 or new_orientation >= 2 * pi:
@@ -27,6 +30,17 @@ class Robot:
         self.bearing_noise = float(new_b_noise)
         self.steering_noise = float(new_s_noise)
         self.distance_noise = float(new_d_noise)
+
+    def sense(self):
+        Z = []
+        for i in range(len(landmarks)):
+            dx = landmarks[i][0] - self.x
+            dy = landmarks[i][1] - self.y
+            bearing = atan2(dy, dx) - self.orientation
+            if dy < 0:
+                bearing += 2 * pi
+            Z.append(bearing)
+        return Z
 
     def measurement_prob(self, measurements):
         predicted_measurements = self.sense()  # Our sense function took 0 as an argument to switch off noise.
@@ -64,101 +78,9 @@ class Robot:
             y = CY - cos(self.orientation + beta) * R
             thetanew = (self.orientation + beta) % (2 * pi)
 
-        result = Robot(self.length)
-        result.set(x, y, thetanew)
-        result.set_noise(bearing_noise, steering_noise, distance_noise)
-        return result  # make sure your move function returns an instance
+        self.set(x, y, thetanew)
+        self.set_noise(bearing_noise, steering_noise, distance_noise)
 
-    def sense(self):
-        Z = []
-        for i in range(len(landmarks)):
-            dx = landmarks[i][0] - self.x
-            dy = landmarks[i][1] - self.y
-            bearing = atan2(dy, dx) - self.orientation
-            if dy < 0:
-                bearing += 2 * pi
-            Z.append(bearing)
-        return Z
-
-
-"""def get_position(p):
-    x = 0.0
-    y = 0.0
-    orientation = 0.0
-    for i in range(len(p)):
-        x += p[i].x
-        y += p[i].y
-        orientation += (((p[i].orientation - p[0].orientation + pi) % (2.0 * pi))
-                        + p[0].orientation - pi)
-    return [x / len(p), y / len(p), orientation / len(p)]
-"""
-
-"""def generate_ground_truth(motions):
-    myrobot = Robot()
-    myrobot.set_noise(bearing_noise, steering_noise, distance_noise)
-
-    Z = []
-    T = len(motions)
-
-    for t in range(T):
-        myrobot = myrobot.move(motions[t])
-        Z.append(myrobot.sense())
-    print('Robot:    ', myrobot)
-    return [myrobot, Z]
-"""
-
-"""def print_measurements(Z):
-    T = len(Z)
-
-    print('measurements = [[%.8s, %.8s, %.8s, %.8s],' % \
-          (str(Z[0][0]), str(Z[0][1]), str(Z[0][2]), str(Z[0][3])))
-    for t in range(1, T - 1):
-        print('                [%.8s, %.8s, %.8s, %.8s],' % (str(Z[t][0]), str(Z[t][1]), str(Z[t][2]), str(Z[t][3])))
-    print('                [%.8s, %.8s, %.8s, %.8s]]' % (
-        str(Z[T - 1][0]), str(Z[T - 1][1]), str(Z[T - 1][2]), str(Z[T - 1][3])))
-"""
-
-"""def check_output(final_robot1, estimated_position):
-    error_x = abs(final_robot1.x - estimated_position[0])
-    error_y = abs(final_robot1.y - estimated_position[1])
-    error_orientation = abs(final_robot.orientation - estimated_position[2])
-    error_orientation = (error_orientation + pi) % (2.0 * pi) - pi
-    correct = error_x < tolerance_xy and error_y < tolerance_xy and error_orientation < tolerance_orientation
-    return correct
-"""
-
-"""def particle_filter(motions1, measurements, N=500):  # I know it's tempting, but don't change N!
-    p = []
-    for i in range(N):
-        r = Robot()
-        r.set_noise(bearing_noise, steering_noise, distance_noise)
-        p.append(r)
-
-    for t in range(len(motions1)):
-        p2 = []
-        for i in range(N):
-            p2.append(p[i].move(motions1[t]))
-        p = p2
-
-        w = []
-        for i in range(N):
-            w.append(p[i].measurement_prob(measurements[t]))
-
-        # resampling
-        p3 = []
-        index = int(random.random() * N)
-        beta = 0.0
-        mw = max(w)
-        for i in range(N):
-            beta += random.random() * 2.0 * mw
-            while beta > w[index]:
-                beta -= w[index]
-                index = (index + 1) % N
-            p3.append(p[index])
-        p = p3
-
-    return get_position(p)
-"""
 
 # TEST CASES:
 max_steering_angle = pi / 4.0
@@ -172,6 +94,15 @@ tolerance_orientation = 0.25
 landmarks = [[0.0, 100.0], [0.0, 0.0], [100.0, 0.0], [100.0, 100.0]]  # position of 4 landmarks in (y, x) format.
 world_size = 100.0  # world is NOT cyclic. Robot is allowed to travel "out of bounds"
 
+
+bearing1 = []
+bearing2 = []
+bearing3 = []
+bearing4 = []
+coords = [(76.0, 94.0)]
+orientations = []
+codes = [Path.MOVETO]
+
 myrobot = Robot(length)
 myrobot.set(76.0, 94.0, 2.0)
 myrobot.set_noise(bearing_noise, steering_noise, distance_noise)
@@ -179,9 +110,26 @@ myrobot.set_noise(bearing_noise, steering_noise, distance_noise)
 print('Robot:        ', myrobot)
 print('Bearing measurements: ', myrobot.sense())
 
-myrobot1 = Robot(length)
-myrobot1.set(99.0, 36.0, pi / 7.0)
-myrobot1.set_noise(bearing_noise, steering_noise, distance_noise)
+for i in range(100):
+    myrobot.move([random.uniform(0,pi/4), random.randint(0,10)])
+    bearings = myrobot.sense()
+    bearing1.append(bearings[0])
+    bearing2.append(bearings[1])
+    bearing3.append(bearings[2])
+    bearing4.append(bearings[3])
+    coords.append((myrobot.x, myrobot.y))
+    codes.append(Path.LINETO)
+    orientations.append(myrobot.orientation)
+    print('Robot:        ', myrobot)
+    print('Bearing measurements: ', myrobot.sense())
 
-print('Robot:        ', myrobot1)
-print('Bearing measurements: ', myrobot1.sense())
+
+path = Path(coords, codes)
+
+fig, ax = plt.subplots()
+patch = patches.PathPatch(path, facecolor="white", lw=2)
+ax.add_patch(patch)
+ax.set_xlim(0, 120)
+ax.set_ylim(0, 120)
+plt.show()
+
