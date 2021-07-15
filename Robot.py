@@ -1,5 +1,8 @@
 from math import *
 import random
+from matplotlib.path import Path
+from matplotlib import patches
+import matplotlib.pyplot as plt
 
 max_steering_angle = pi / 4.0
 bearing_noise = 0.1
@@ -172,6 +175,8 @@ def particle_filter(motions1, measurements, N=500):  # I know it's tempting, but
 
 
 # TEST CASES:
+coords = [(76.0, 94.0)]
+codes = [Path.MOVETO]
 motions = [[2. * pi / 10, 20.] for row in range(8)]
 measurements_list = [[4.746936, 3.859782, 3.045217, 2.045506],
                      [3.510067, 2.916300, 2.146394, 1.598332],
@@ -193,12 +198,30 @@ for j in range(10):
     final_robot = x[0]
     measurements_list = x[1]
     estimated_position = particle_filter(motions, measurements_list)
+    coords.append((estimated_position[0], estimated_position[1]))
+    codes.append(Path.LINETO)
     if check_output(final_robot, estimated_position):
         ij += 1
 
     print(j)
     print(ij)
     print_measurements(measurements_list)
+
+    xs = []
+    ys = []
+    for j in range(6):
+        xs.append(measurements_list[j][0])
+        ys.append(measurements_list[j][1])
+    plt.scatter(xs, ys)
+    plt.show()
     print('Ground truth:    ', final_robot)
     print('Particle filter: ', estimated_position)
     print('Code check:      ', check_output(final_robot, estimated_position))
+
+path = Path(coords, codes)
+fig, ax = plt.subplots()
+patch = patches.PathPatch(path, facecolor="white", lw=2)
+ax.add_patch(patch)
+ax.set_xlim(0, 120)
+ax.set_ylim(0, 120)
+plt.show()
